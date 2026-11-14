@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <title>gravix world</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      #host { position: absolute; inset: 0; }
+    </style>
+    <!-- One world per WebView on Windows / Android. Flutter calls
+         GravixWorlds.mount(kind, document.getElementById('host'), launch)
+         once the page has loaded. -->
+    <script src="gravix_worlds.js"></script>
+  </head>
+  <body>
+    <div id="host"></div>
+  </body>
+</html>

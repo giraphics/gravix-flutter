@@ -1,0 +1,4 @@
+# Keep script line endings right on every checkout: cmd.exe misreads labels in
+# LF-only batch files, and bash chokes on CRLF.
+*.bat text eol=crlf
+*.sh text eol=lf

@@ -1,0 +1,19 @@
+{
+  "name": "gravix-flutter-worlds",
+  "private": true,
+  "description": "The three gravix-engine worlds, bundled into ../assets/www/gravix_worlds.js for the Flutter app (web, Windows, Android)",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@babylonjs/core": "7.54.3",
+    "@giraphics/gravix-engine": "0.1.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
+  }
+}
