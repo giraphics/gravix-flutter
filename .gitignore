@@ -51,3 +51,4 @@ app.*.map.json
 web_src/node_modules/
 assets/www/gravix_worlds.js
 assets/www/gravix_worlds.js.map
+web_src/.test-build/

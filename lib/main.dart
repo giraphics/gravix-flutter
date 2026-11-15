@@ -5,6 +5,7 @@ import 'launch.dart';
 import 'panels/cloud_panel.dart';
 import 'panels/hierarchy_panel.dart';
 import 'panels/terrain_panel.dart';
+import 'panels/traffic_panel.dart';
 import 'worlds/platform_backend.dart';
 import 'worlds/world_backend.dart';
 
@@ -67,6 +68,7 @@ class _WorldsPageState extends State<WorldsPage> {
       TerrainPanel(key: key, launch: _launch, createBackend: widget.createBackend),
       CloudPanel(key: key, launch: _launch, createBackend: widget.createBackend),
       HierarchyPanel(key: key, launch: _launch, createBackend: widget.createBackend),
+      TrafficPanel(key: key, launch: _launch, createBackend: widget.createBackend),
     ];
 
     return Scaffold(
@@ -80,9 +82,10 @@ class _WorldsPageState extends State<WorldsPage> {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Three worlds, one npm package: terrain, a Lorenz attractor or '
-                'bouncing box, and a parent/child hierarchy. Drag a world to orbit. '
-                '${kIsWeb ? 'URL flags ?backend=webgl, ?failDevice=1 and ?points=N, or ' : 'Launch flags: '}'
+                'Four worlds, one npm package: terrain, a Lorenz attractor or '
+                'bouncing box, a parent/child hierarchy, and live traffic from '
+                'gravix-sim-backend. Drag a world to orbit. '
+                '${kIsWeb ? 'URL flags ?backend=webgl, ?failDevice=1, ?points=N and ?sim=ws://host:8081, or ' : 'Launch flags: '}'
                 'the tune menu.',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant),

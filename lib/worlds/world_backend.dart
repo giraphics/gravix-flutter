@@ -2,8 +2,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../launch.dart';
 
-/// The three worlds, named as `GravixWorlds` knows them.
-enum WorldKind { terrain, cloud, hierarchy }
+/// The worlds, named as `GravixWorlds` knows them.
+enum WorldKind { terrain, cloud, hierarchy, traffic }
 
 /// One running gravix world, wherever it runs.
 ///

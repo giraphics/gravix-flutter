@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-/// The three launch flags gravix-quasar reads from the URL.
+/// The launch flags gravix-quasar reads from the URL, plus `?sim=`.
 ///
 /// On the web they come from the address bar (`?backend=webgl`,
 /// `?failDevice=1`, `?points=N`, before or after the `#`). On Windows and
@@ -11,6 +11,7 @@ class LaunchOptions {
     this.forceWebGL = false,
     this.failDevice = false,
     this.points = defaultPoints,
+    this.simUrl = '',
   });
 
   static const defaultPoints = 300000;
@@ -29,6 +30,7 @@ class LaunchOptions {
       forceWebGL: params['backend'] == 'webgl',
       failDevice: params['failDevice'] == '1',
       points: points != null && points > 0 ? points : defaultPoints,
+      simUrl: params['sim'] ?? '',
     );
   }
 
@@ -41,18 +43,24 @@ class LaunchOptions {
   /// Point-cloud capacity.
   final int points;
 
+  /// Base WebSocket address of a gravix-sim-backend (`?sim=ws://host:8081`).
+  /// When set, the traffic world connects as soon as it starts.
+  final String simUrl;
+
   /// What `GravixWorlds.mount` expects.
   String toJson() => jsonEncode({
         'backend': forceWebGL ? 'webgl' : 'auto',
         'failDevice': failDevice,
         'points': points,
+        'sim': simUrl,
       });
 
-  LaunchOptions copyWith({bool? forceWebGL, bool? failDevice, int? points}) =>
+  LaunchOptions copyWith({bool? forceWebGL, bool? failDevice, int? points, String? simUrl}) =>
       LaunchOptions(
         forceWebGL: forceWebGL ?? this.forceWebGL,
         failDevice: failDevice ?? this.failDevice,
         points: points ?? this.points,
+        simUrl: simUrl ?? this.simUrl,
       );
 
   @override
@@ -60,8 +68,9 @@ class LaunchOptions {
       other is LaunchOptions &&
       other.forceWebGL == forceWebGL &&
       other.failDevice == failDevice &&
-      other.points == points;
+      other.points == points &&
+      other.simUrl == simUrl;
 
   @override
-  int get hashCode => Object.hash(forceWebGL, failDevice, points);
+  int get hashCode => Object.hash(forceWebGL, failDevice, points, simUrl);
 }

@@ -1,5 +1,6 @@
 /**
- * `window.GravixWorlds`: gravix-quasar's three worlds behind one small API that
+ * `window.GravixWorlds`: gravix-quasar's three worlds (plus a fourth, "traffic",
+ * that shows a gravix-sim-backend run) behind one small API that
  * Flutter calls the same way on every platform.
  *
  *   mount(kind, host, launchJson)  -> Promise<string>   backend name once running
@@ -29,13 +30,16 @@ import { MARKER_TOPOLOGY, TERRAIN_TOPOLOGY, buildMarker, buildTerrain } from './
 import { LorenzAttractorSystem } from './lib/lorenz-attractor.js';
 import { spawnDynamicMesh } from './lib/mesh.js';
 import { ParentOrbitSystem } from './lib/orbit.js';
+import { createTraffic } from './traffic.js';
 
-type WorldKind = 'terrain' | 'cloud' | 'hierarchy';
+type WorldKind = 'terrain' | 'cloud' | 'hierarchy' | 'traffic';
 
 interface Launch {
   backend: 'auto' | 'webgl';
   failDevice: boolean;
   points: number;
+  /** Base WebSocket address of a gravix-sim-backend; empty means not set. */
+  sim: string;
 }
 
 /** What every world shares: an engine on a canvas that tracks its host's size. */
@@ -48,6 +52,8 @@ interface World {
   /** World-specific fields for state(). */
   snapshot(): Record<string, unknown>;
   invoke(action: string, args: unknown[]): void;
+  /** Release anything the world holds outside the engine (sockets, timers). */
+  dispose?(): void;
 }
 
 interface Mounted {
@@ -83,6 +89,7 @@ function launchFromUrl(): string {
     backend: params.get('backend') === 'webgl' ? 'webgl' : 'auto',
     failDevice: params.get('failDevice') === '1',
     points: Number.isFinite(points) && points > 0 ? Math.floor(points) : DEFAULT_POINTS,
+    sim: params.get('sim') ?? '',
   };
   return JSON.stringify(launch);
 }
@@ -96,11 +103,12 @@ function parseLaunch(json: string | undefined): Launch {
     backend: given.backend === 'webgl' ? 'webgl' : 'auto',
     failDevice: given.failDevice === true,
     points: Number.isFinite(points) && points > 0 ? Math.floor(points) : DEFAULT_POINTS,
+    sim: typeof given.sim === 'string' ? given.sim : fallback.sim,
   };
 }
 
 // ---------------------------------------------------------------------------
-// The three worlds. Each `create*` configures a fresh engine, like the
+// The worlds. Each `create*` configures a fresh engine, like the
 // `configure` callback each Vue panel passed to useGravixEngine.
 
 function createTerrain(engine: GravixEngine): World {
@@ -289,6 +297,18 @@ function createHierarchy(engine: GravixEngine, orbit: ParentOrbitSystem): World 
   };
 }
 
+/** `?sim=ws://host:port` connects the traffic world as soon as it starts. */
+function trafficAutoConnect(launch: Launch): { url: string; scenario: string; vehicles: number } | null {
+  if (!launch.sim) return null;
+  const params = queryParams();
+  const vehicles = Number(params.get('vehicles') ?? 0);
+  return {
+    url: launch.sim,
+    scenario: params.get('scenario') ?? 'grid-small',
+    vehicles: Number.isFinite(vehicles) ? vehicles : 0,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Mount / state / invoke / dispose.
 
@@ -327,6 +347,7 @@ async function mount(kind: WorldKind, host: HTMLElement, launchJson?: string): P
   observer.observe(canvas);
   entry.teardown = () => {
     observer.disconnect();
+    entry.world?.dispose?.();
     entry.running?.engine.dispose();
     host.replaceChildren();
   };
@@ -341,7 +362,9 @@ async function mount(kind: WorldKind, host: HTMLElement, launchJson?: string): P
       ? { clearColor: [0.04, 0.05, 0.09, 1], sceneName: 'terrain' }
       : kind === 'cloud'
         ? { clearColor: [0, 0, 0, 1], sceneName: 'cloud', systems: [bounce, lorenz] }
-        : { clearColor: [0.06, 0.04, 0.08, 1], sceneName: 'hierarchy', systems: [orbit] };
+        : kind === 'traffic'
+          ? { clearColor: [0.03, 0.05, 0.06, 1], sceneName: 'traffic' }
+          : { clearColor: [0.06, 0.04, 0.08, 1], sceneName: 'hierarchy', systems: [orbit] };
 
   try {
     const backend = new BabylonBackend();
@@ -362,7 +385,9 @@ async function mount(kind: WorldKind, host: HTMLElement, launchJson?: string): P
         ? createTerrain(engine)
         : kind === 'cloud'
           ? createCloud(engine, launch, bounce, lorenz)
-          : createHierarchy(engine, orbit);
+          : kind === 'traffic'
+            ? createTraffic(engine, trafficAutoConnect(launch))
+            : createHierarchy(engine, orbit);
     engine.start();
     return engine.backendKind;
   } catch (e) {

@@ -4,7 +4,9 @@ Flutter app for map and point-cloud visualisation, built on
 [`@giraphics/gravix-engine`](https://www.npmjs.com/package/@giraphics/gravix-engine)
 `0.1.0` from npm. The Flutter sibling of
 [gravix-quasar](https://github.com/giraphics/gravix-quasar): the same three
-worlds and controls, with a Flutter UI on web, Windows and Android.
+worlds and controls, with a Flutter UI on web, Windows and Android, plus a
+fourth world that shows live traffic from
+[gravix-sim-backend](https://github.com/giraphics/gravix-sim-backend).
 
 **[Live demo](https://giraphics.github.io/gravix-flutter/)** ·
 [WebGL2](https://giraphics.github.io/gravix-flutter/?backend=webgl) ·
@@ -18,13 +20,14 @@ WebGL2 link.
 
 *Captured from a local web build using the WebGL2 backend (`?backend=webgl`).*
 
-Three independent worlds, each its own engine on its own canvas:
+Four independent worlds, each its own engine on its own canvas:
 
 | World | Controls |
 |---|---|
 | **Terrain** (48×48 height field) | Visible · draw count slider |
 | **Point cloud** (300,000 points) | Visible · Lorenz attractor / bouncing box · point-count slider · a, b, r, dt, α · Reset · Animate |
 | **Hierarchy** (parent + child) | Parent / child visible · orbit parent · destroy / recreate |
+| **Traffic** (live simulator run) | Simulator address · scenario · vehicle count · connect / disconnect · pause |
 
 Each card's stats line shows backend, fps, frame, vertices and live resources.
 
@@ -33,8 +36,9 @@ Each card's stats line shows backend, fps, frame, vertices and live resources.
 The engine is JavaScript, so Flutter hosts it rather than reimplementing it:
 
 ```
-web_src/src/lib/*.ts      gravix-quasar's engine code (geometry, mesh, orbit, Lorenz), unchanged
-web_src/src/worlds.ts     the three worlds behind window.GravixWorlds
+web_src/src/lib/*.ts      gravix-quasar's engine code (geometry, mesh, orbit, Lorenz), unchanged,
+                          plus simproto.ts (the simulator's protobuf messages) and traffic.ts
+web_src/src/worlds.ts     the four worlds behind window.GravixWorlds
                           mount(kind, host, launch) · state(kind) · invoke(kind, action, args) · dispose(kind)
         │ npm run build (esbuild)
         ▼
@@ -43,7 +47,7 @@ assets/www/world.html         hosts one world in a WebView
 
 lib/worlds/world_backend_web.dart     web: HtmlElementView + dart:js_interop, all worlds in one page
 lib/worlds/world_backend_native.dart  Windows: WebView2 (webview_windows) · Android: System WebView (webview_flutter)
-lib/panels/*.dart                     the three cards, written once against WorldBackend
+lib/panels/*.dart                     the four cards, written once against WorldBackend
 ```
 
 On Windows and Android each world runs in its own WebView, the way Electron
@@ -103,6 +107,20 @@ unset, the scripts point the JDK's socket folder at `build/.jdk-sockets`; this
 avoids Gradle's *Unable to establish loopback connection* when the user profile
 path contains a space. In Git Bash, `build.sh` stops MSYS from rewriting
 `--base-href /x/` into a Windows path.
+
+## Run it
+
+`run.bat` builds the engine bundle, runs `flutter pub get`, then starts the
+app on the device you name (default `chrome`):
+
+```bat
+run.bat                :: browser
+run.bat windows        :: desktop app
+run.bat android        :: connected phone or emulator
+```
+
+Start the simulator first for the Traffic card:
+`..\gravix-sim-backend\run-sim-server.bat`.
 
 ## Build the engine bundle by hand
 
@@ -216,16 +234,51 @@ until you add a release signing config in `android/app/build.gradle.kts`.
 
 ![gravix-flutter on the Android emulator: terrain and the Lorenz attractor on WebGL2](docs/screenshots/android.png)
 
+## Traffic world
+
+The fourth card draws a live run of
+[gravix-sim-backend](https://github.com/giraphics/gravix-sim-backend): the road
+map as lines and every vehicle as a point, coloured by speed. The browser (or
+WebView) opens a WebSocket to the Rust simulator and decodes its protobuf
+frames in `web_src/src/lib/simproto.ts`. The contract is
+`proto/gravix/sim/v1/sim.proto` in the backend repository.
+
+Start the simulator, then press Connect:
+
+```bash
+git clone https://github.com/giraphics/gravix-sim-backend
+cd gravix-sim-backend/sim
+cargo run --release -- serve        # ws://127.0.0.1:8081
+```
+
+| Where the app runs | Address to use |
+|---|---|
+| Web, Windows | `ws://127.0.0.1:8081` (the default) |
+| Android emulator | `ws://10.0.2.2:8081` (the default on Android) |
+| A phone on your network | `ws://<your computer's address>:8081` |
+
+`?sim=ws://host:8081` in the web address connects the card on load. The
+Android debug build allows plain `ws://`; a release build needs `wss://`, so
+put the simulator behind TLS before using it from a release APK. The page
+that hosts the app over HTTPS also needs `wss://` (browsers block `ws://` from
+an HTTPS page, except for `localhost`).
+
+The stats line shows the stream rate, the tick, the vehicle count and the
+latency. Latency is the simulator's send time against this device's clock, so
+it is only meaningful when both run on the same machine.
+
 ## Tests
 
 ```bash
 flutter analyze
 flutter test
+cd web_src && npm run test          # the protobuf decoder
 ```
 
 The widget tests run the real panels against a fake `WorldBackend`, so they
 need no browser or WebView: state in, actions out, and a launch-flag change
-rebuilding every world.
+rebuilding every world. The decoder tests build frames by hand and check they
+read back, including unknown fields and truncated input.
 
 ## Troubleshooting
 
